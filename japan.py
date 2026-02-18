@@ -588,8 +588,13 @@ OUTPUT_HTML = "donan_choropleth.html" if REGION == "donan" else "japan_choroplet
 # 全国はポリゴンHTMLだと巨大になりがちなので、既定はラスタ重ね（軽量なインタラクティブHTML）
 OUTPUT_MODE = "html" if REGION == "donan" else "raster_html"  # "html" | "png" | "both" | "raster_html"
 OUTPUT_PNG = "donan_density.png" if REGION == "donan" else "japan_density.png"
-OUTPUT_RASTER_PNG = "donan_overlay.png" if REGION == "donan" else "japan_overlay.png"
-OUTPUT_RASTER_HTML = "donan_interactive.html" if REGION == "donan" else "japan_interactive.html"
+# GitHub Pages 用に、全国(raster_html)は docs/ に出す（docs/index.html が入口）
+OUTPUT_RASTER_PNG = (
+    "donan_overlay.png" if REGION == "donan" else str(Path("docs") / "overlay.png")
+)
+OUTPUT_RASTER_HTML = (
+    "donan_interactive.html" if REGION == "donan" else str(Path("docs") / "index.html")
+)
 # 日本全国は既定でラスタ出力なので、デフォルトは 3次メッシュ(約1km)まで上げる
 # ※HTML化する場合は重くなりやすいので OUTPUT_MESH_LEVEL=2 も検討
 OUTPUT_MESH_LEVEL = 3 if REGION == "donan" else 3  # 2 or 3
@@ -1267,6 +1272,7 @@ if want_png or want_raster_html:
                 print(f"warn: failed to plot japan outline on overlay: {e}")
 
         overlay_path = Path(OUTPUT_RASTER_PNG)
+        overlay_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(overlay_path, dpi=PNG_DPI, transparent=True)
         plt.close(fig)
         print(f"saved: {overlay_path} ({width_px}x{height_px}px)")
@@ -1292,6 +1298,7 @@ if want_png or want_raster_html:
 
         overlay_file = overlay_path.name
         out_html = Path(OUTPUT_RASTER_HTML)
+        out_html.parent.mkdir(parents=True, exist_ok=True)
         html = f"""<!doctype html>
 <html lang="en">
 <head>

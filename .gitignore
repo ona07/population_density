@@ -17,8 +17,9 @@ venv/
 .pytest_cache/
 .mypy_cache/
 
-# Generated outputs (large)
-*_density.png
-*_overlay.png
-*_choropleth.html
-*_heatmap.html
+# Generated outputs (large) at repo root
+/*_density.png
+/*_overlay.png
+/*_choropleth.html
+/*_interactive.html
+/*_heatmap.html

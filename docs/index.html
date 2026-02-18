@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Japan Population Density (2020)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; width: 100%; }
+    .legend {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      background: rgba(255,255,255,0.92);
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      font: 13px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #111;
+      z-index: 1000;
+      max-width: 280px;
+    }
+    .legend .title { font-weight: 600; margin-bottom: 6px; }
+    .legend .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .legend .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); }
+    .legend .grad { height: 10px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.15);
+      background: linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026);
+      margin-top: 6px;
+    }
+    .legend .grad-labels { display: flex; justify-content: space-between; font-size: 12px; color: #333; }
+    .legend .small { font-size: 12px; color: #333; }
+    .legend input[type=range] { width: 100%; }
+    .leaflet-tooltip.city-label {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: #111;
+      font: 12px/1.1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      text-shadow: 0 0 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.85);
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="legend">
+    <div class="title">Population density (people/km²)</div>
+    <div class="row"><span class="swatch" style="background:#000000;"></span><span>0</span></div>
+    <div class="row"><span class="swatch" style="background:#2b6cb0;"></span><span>1–50</span></div>
+    <div class="grad"></div>
+    <div class="grad-labels"><span>&gt;50</span><span>784 (99th pct)</span></div>
+    <div class="small" style="margin-top:8px;">Overlay opacity</div>
+    <input id="opacity" type="range" min="0" max="1" step="0.05" value="1" />
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const bounds = [[24.20833333, 122.93750000], [45.52500000, 153.98750000]];
+    const map = L.map('map', { preferCanvas: true }).setView([34.866667, 138.462500], 5);
+
+    const base = L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }
+    ).addTo(map);
+
+    const overlay = L.imageOverlay('overlay.png', bounds, { opacity: 1 }).addTo(map);
+    map.fitBounds(bounds);
+
+    const cities = [{"name": "Tokyo", "lat": 35.6869628, "lon": 139.7494616}, {"name": "Kyoto", "lat": 35.0319381, "lon": 135.7480521}, {"name": "Ōsaka", "lat": 34.691095244477914, "lon": 135.50375419006232}, {"name": "Yokohama", "lat": 35.4306562, "lon": 139.602021}, {"name": "Nagoya", "lat": 35.1569434, "lon": 136.9130456}, {"name": "Fukuoka", "lat": 33.5969611, "lon": 130.4080679}, {"name": "Sapporo", "lat": 43.0769251, "lon": 141.3380985}, {"name": "Sendai", "lat": 38.2684409197744, "lon": 140.86966685536837}, {"name": "Hiroshima", "lat": 34.389781, "lon": 132.4409671}, {"name": "Kōbe", "lat": 34.6799878, "lon": 135.1699816}, {"name": "Kitakyūshū", "lat": 33.870399, "lon": 130.8200146}, {"name": "Naha", "lat": 26.2071717, "lon": 127.6729716}, {"name": "Okayama", "lat": 34.6720296, "lon": 133.9170865}, {"name": "Kumamoto", "lat": 32.8009294, "lon": 130.700642}, {"name": "Shizuoka", "lat": 34.9858348, "lon": 138.3853926}, {"name": "Utsunomiya", "lat": 36.549977, "lon": 139.8700048}, {"name": "Nagano", "lat": 36.6499968, "lon": 138.1700052}, {"name": "Niigata", "lat": 37.9199968, "lon": 139.0400297}, {"name": "Kagoshima", "lat": 31.5859648, "lon": 130.561064}, {"name": "Kanazawa", "lat": 36.5600023, "lon": 136.6400211}, {"name": "Matsuyama", "lat": 33.8455426, "lon": 132.765839}, {"name": "Tsu", "lat": 34.7170657, "lon": 136.5166695}, {"name": "Ōita", "lat": 33.243228, "lon": 131.5978999}, {"name": "Tokushima", "lat": 34.0673895, "lon": 134.5525}, {"name": "Wakayama", "lat": 34.2231165, "lon": 135.1677079}, {"name": "Nagasaki", "lat": 32.7649884, "lon": 129.8850329}, {"name": "Gifu", "lat": 35.4230949, "lon": 136.7627526}, {"name": "Mito", "lat": 36.3704273, "lon": 140.4800451}, {"name": "Maebashi", "lat": 36.3926998, "lon": 139.0726892}, {"name": "Kōchi", "lat": 33.5624333, "lon": 133.5375232}, {"name": "Takamatsu", "lat": 34.344737, "lon": 134.044779}, {"name": "Toyama", "lat": 36.6999937, "lon": 137.2300109}, {"name": "Miyazaki", "lat": 31.9182442, "lon": 131.418376}, {"name": "Aomori", "lat": 40.8250391, "lon": 140.7100052}, {"name": "Morioka", "lat": 39.7200161, "lon": 141.1300313}, {"name": "Fukushima", "lat": 37.7400078, "lon": 140.4700199}, {"name": "Yamagata", "lat": 38.2704922, "lon": 140.3200032}, {"name": "Fukui", "lat": 36.0704197, "lon": 136.2200468}, {"name": "Kōfu", "lat": 35.6503937, "lon": 138.5833134}, {"name": "Tomakomai", "lat": 42.6504057, "lon": 141.5500057}, {"name": "Matsue", "lat": 35.466994, "lon": 133.0666475}, {"name": "Hamamatsu", "lat": 34.7180733, "lon": 137.7327193}, {"name": "Hachiōji", "lat": 35.6577059, "lon": 139.3260587}, {"name": "Iwaki", "lat": 37.0553467, "lon": 140.8900459}, {"name": "Asahikawa", "lat": 43.7550153, "lon": 142.3799808}];
+    for (const c of cities) {
+      const pt = L.circleMarker([c.lat, c.lon], {
+        radius: 3,
+        color: '#000',
+        weight: 1,
+        fillColor: '#fff',
+        fillOpacity: 1
+      }).addTo(map);
+      pt.bindTooltip(c.name, {
+        permanent: true,
+        direction: 'right',
+        offset: [8, 0],
+        className: 'city-label',
+        opacity: 0.9
+      });
+    }
+
+    const opacity = document.getElementById('opacity');
+    opacity.addEventListener('input', (e) => {
+      overlay.setOpacity(parseFloat(e.target.value));
+    });
+  </script>
+</body>
+</html>
