@@ -1,0 +1,25 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+
+# Virtual environments / env files
+.venv/
+venv/
+.env
+.env.*
+
+# Caches
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Generated outputs (large)
+*_density.png
+*_overlay.png
+*_choropleth.html
+*_interactive.html
+*_heatmap.html
