@@ -1398,6 +1398,20 @@ if want_png or want_raster_html:
         out_html.write_text(html, encoding="utf-8")
         print(f"saved: {out_html}")
 
+        # GitHub Pages の Source が repo root の場合でも動くように、index.html を root にも出す
+        # - overlay は docs/overlay.png を参照させる
+        try:
+            if out_html.name == "index.html" and out_html.parent.name == "docs":
+                root_index = Path("index.html")
+                root_html = html.replace(
+                    "L.imageOverlay('overlay.png'",
+                    "L.imageOverlay('docs/overlay.png'",
+                )
+                root_index.write_text(root_html, encoding="utf-8")
+                print(f"saved: {root_index}")
+        except Exception as e:
+            print(f"warn: failed to write root index.html: {e}")
+
 if OUTPUT_MODE in ("html", "both"):
     # Folium Choropleth（人口密度をそのまま色分けしてHTML出力）
     import folium
