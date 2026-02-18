@@ -21,5 +21,4 @@ venv/
 *_density.png
 *_overlay.png
 *_choropleth.html
-*_interactive.html
 *_heatmap.html
