@@ -64,7 +64,7 @@
       { attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }
     ).addTo(map);
 
-	    const overlay = L.imageOverlay('docs/overlay.png', bounds, { opacity: 1 }).addTo(map);
+	    const overlay = L.imageOverlay('overlay.png', bounds, { opacity: 1 }).addTo(map);
 	    map.fitBounds(bounds);
 
 	    let userMarker = null;

@@ -67,6 +67,56 @@
     const overlay = L.imageOverlay('japan_overlay.png', bounds, { opacity: 1 }).addTo(map);
     map.fitBounds(bounds);
 
+    let userMarker = null;
+    let userAccuracy = null;
+    function isInOverlayBounds(latlng) {
+      const minLat = bounds[0][0];
+      const minLon = bounds[0][1];
+      const maxLat = bounds[1][0];
+      const maxLon = bounds[1][1];
+      return (
+        latlng.lat >= minLat &&
+        latlng.lat <= maxLat &&
+        latlng.lng >= minLon &&
+        latlng.lng <= maxLon
+      );
+    }
+    map.on('locationfound', (e) => {
+      if (!isInOverlayBounds(e.latlng)) return;
+      const targetZoom = Math.max(map.getZoom(), 10);
+      map.setView(e.latlng, targetZoom, { animate: true });
+
+      if (!userMarker) {
+        userMarker = L.circleMarker(e.latlng, {
+          radius: 6,
+          color: '#1a202c',
+          weight: 2,
+          fillColor: '#3182ce',
+          fillOpacity: 1
+        }).addTo(map);
+      } else {
+        userMarker.setLatLng(e.latlng);
+      }
+
+      const radiusM = Math.max(25, (e.accuracy || 0) / 2);
+      if (!userAccuracy) {
+        userAccuracy = L.circle(e.latlng, {
+          radius: radiusM,
+          color: '#3182ce',
+          weight: 1,
+          fillColor: '#3182ce',
+          fillOpacity: 0.15
+        }).addTo(map);
+      } else {
+        userAccuracy.setLatLng(e.latlng);
+        userAccuracy.setRadius(radiusM);
+      }
+    });
+    map.on('locationerror', () => {});
+    if ('geolocation' in navigator) {
+      map.locate({ setView: false, timeout: 8000, maximumAge: 600000 });
+    }
+
     const cities = [{"name": "Tokyo", "lat": 35.6869628, "lon": 139.7494616}, {"name": "Kyoto", "lat": 35.0319381, "lon": 135.7480521}, {"name": "Ōsaka", "lat": 34.691095244477914, "lon": 135.50375419006232}, {"name": "Yokohama", "lat": 35.4306562, "lon": 139.602021}, {"name": "Nagoya", "lat": 35.1569434, "lon": 136.9130456}, {"name": "Fukuoka", "lat": 33.5969611, "lon": 130.4080679}, {"name": "Sapporo", "lat": 43.0769251, "lon": 141.3380985}, {"name": "Sendai", "lat": 38.2684409197744, "lon": 140.86966685536837}, {"name": "Hiroshima", "lat": 34.389781, "lon": 132.4409671}, {"name": "Kōbe", "lat": 34.6799878, "lon": 135.1699816}, {"name": "Kitakyūshū", "lat": 33.870399, "lon": 130.8200146}, {"name": "Naha", "lat": 26.2071717, "lon": 127.6729716}, {"name": "Okayama", "lat": 34.6720296, "lon": 133.9170865}, {"name": "Kumamoto", "lat": 32.8009294, "lon": 130.700642}, {"name": "Shizuoka", "lat": 34.9858348, "lon": 138.3853926}, {"name": "Utsunomiya", "lat": 36.549977, "lon": 139.8700048}, {"name": "Nagano", "lat": 36.6499968, "lon": 138.1700052}, {"name": "Niigata", "lat": 37.9199968, "lon": 139.0400297}, {"name": "Kagoshima", "lat": 31.5859648, "lon": 130.561064}, {"name": "Kanazawa", "lat": 36.5600023, "lon": 136.6400211}, {"name": "Matsuyama", "lat": 33.8455426, "lon": 132.765839}, {"name": "Tsu", "lat": 34.7170657, "lon": 136.5166695}, {"name": "Ōita", "lat": 33.243228, "lon": 131.5978999}, {"name": "Tokushima", "lat": 34.0673895, "lon": 134.5525}, {"name": "Wakayama", "lat": 34.2231165, "lon": 135.1677079}, {"name": "Nagasaki", "lat": 32.7649884, "lon": 129.8850329}, {"name": "Gifu", "lat": 35.4230949, "lon": 136.7627526}, {"name": "Mito", "lat": 36.3704273, "lon": 140.4800451}, {"name": "Maebashi", "lat": 36.3926998, "lon": 139.0726892}, {"name": "Kōchi", "lat": 33.5624333, "lon": 133.5375232}, {"name": "Takamatsu", "lat": 34.344737, "lon": 134.044779}, {"name": "Toyama", "lat": 36.6999937, "lon": 137.2300109}, {"name": "Miyazaki", "lat": 31.9182442, "lon": 131.418376}, {"name": "Aomori", "lat": 40.8250391, "lon": 140.7100052}, {"name": "Morioka", "lat": 39.7200161, "lon": 141.1300313}, {"name": "Fukushima", "lat": 37.7400078, "lon": 140.4700199}, {"name": "Yamagata", "lat": 38.2704922, "lon": 140.3200032}, {"name": "Fukui", "lat": 36.0704197, "lon": 136.2200468}, {"name": "Kōfu", "lat": 35.6503937, "lon": 138.5833134}, {"name": "Tomakomai", "lat": 42.6504057, "lon": 141.5500057}, {"name": "Matsue", "lat": 35.466994, "lon": 133.0666475}, {"name": "Hamamatsu", "lat": 34.7180733, "lon": 137.7327193}, {"name": "Hachiōji", "lat": 35.6577059, "lon": 139.3260587}, {"name": "Iwaki", "lat": 37.0553467, "lon": 140.8900459}, {"name": "Asahikawa", "lat": 43.7550153, "lon": 142.3799808}];
     for (const c of cities) {
       const pt = L.circleMarker([c.lat, c.lon], {

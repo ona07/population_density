@@ -1365,13 +1365,63 @@ if want_png or want_raster_html:
       {{ attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }}
     ).addTo(map);
 
-    const overlay = L.imageOverlay('{overlay_file}', bounds, {{ opacity: 1 }}).addTo(map);
-    map.fitBounds(bounds);
+	    const overlay = L.imageOverlay('{overlay_file}', bounds, {{ opacity: 1 }}).addTo(map);
+	    map.fitBounds(bounds);
 
-    const cities = {city_js};
-    for (const c of cities) {{
-      const pt = L.circleMarker([c.lat, c.lon], {{
-        radius: 3,
+	    let userMarker = null;
+	    let userAccuracy = null;
+	    function isInOverlayBounds(latlng) {{
+	      const minLat = bounds[0][0];
+	      const minLon = bounds[0][1];
+	      const maxLat = bounds[1][0];
+	      const maxLon = bounds[1][1];
+	      return (
+	        latlng.lat >= minLat &&
+	        latlng.lat <= maxLat &&
+	        latlng.lng >= minLon &&
+	        latlng.lng <= maxLon
+	      );
+	    }}
+	    map.on('locationfound', (e) => {{
+	      if (!isInOverlayBounds(e.latlng)) return;
+	      const targetZoom = Math.max(map.getZoom(), 10);
+	      map.setView(e.latlng, targetZoom, {{ animate: true }});
+	
+	      if (!userMarker) {{
+	        userMarker = L.circleMarker(e.latlng, {{
+	          radius: 6,
+	          color: '#1a202c',
+	          weight: 2,
+	          fillColor: '#3182ce',
+	          fillOpacity: 1
+	        }}).addTo(map);
+	      }} else {{
+	        userMarker.setLatLng(e.latlng);
+	      }}
+	
+	      const radiusM = Math.max(25, (e.accuracy || 0) / 2);
+	      if (!userAccuracy) {{
+	        userAccuracy = L.circle(e.latlng, {{
+	          radius: radiusM,
+	          color: '#3182ce',
+	          weight: 1,
+	          fillColor: '#3182ce',
+	          fillOpacity: 0.15
+	        }}).addTo(map);
+	      }} else {{
+	        userAccuracy.setLatLng(e.latlng);
+	        userAccuracy.setRadius(radiusM);
+	      }}
+	    }});
+	    map.on('locationerror', () => {{}});
+	    if ('geolocation' in navigator) {{
+	      map.locate({{ setView: false, timeout: 8000, maximumAge: 600000 }});
+	    }}
+	
+	    const cities = {city_js};
+	    for (const c of cities) {{
+	      const pt = L.circleMarker([c.lat, c.lon], {{
+	        radius: 3,
         color: '#000',
         weight: 1,
         fillColor: '#fff',
