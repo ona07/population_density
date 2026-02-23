@@ -1329,13 +1329,23 @@ if want_png or want_raster_html:
       background: linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026);
       margin-top: 6px;
     }}
-    .legend .grad-labels {{ display: flex; justify-content: space-between; font-size: 12px; color: #333; }}
-    .legend .small {{ font-size: 12px; color: #333; }}
-    .legend input[type=range] {{ width: 100%; }}
-    .leaflet-tooltip.city-label {{
-      background: transparent;
-      border: none;
-      box-shadow: none;
+	    .legend .grad-labels {{ display: flex; justify-content: space-between; font-size: 12px; color: #333; }}
+	    .legend .small {{ font-size: 12px; color: #333; }}
+	    .legend input[type=range] {{ width: 100%; }}
+	    .legend button {{
+	      appearance: none;
+	      border: 1px solid rgba(0,0,0,0.18);
+	      background: #fff;
+	      border-radius: 6px;
+	      padding: 4px 8px;
+	      font-size: 12px;
+	      cursor: pointer;
+	    }}
+	    .legend button:hover {{ background: rgba(0,0,0,0.03); }}
+	    .leaflet-tooltip.city-label {{
+	      background: transparent;
+	      border: none;
+	      box-shadow: none;
       color: #111;
       font: {int(CITY_LABEL_FONT_PX)}px/1.1 -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Arial, sans-serif;
       text-shadow: 0 0 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.85);
@@ -1350,10 +1360,14 @@ if want_png or want_raster_html:
     <div class="row"><span class="swatch" style="background:{no_people_color};"></span><span>0</span></div>
     <div class="row"><span class="swatch" style="background:{low_color};"></span><span>1–{low_threshold:g}</span></div>
     <div class="grad"></div>
-    <div class="grad-labels"><span>&gt;{low_threshold:g}</span><span>{vmax:.0f} (99th pct)</span></div>
-    <div class="small" style="margin-top:8px;">Overlay opacity</div>
-    <input id="opacity" type="range" min="0" max="1" step="0.05" value="1" />
-  </div>
+	    <div class="grad-labels"><span>&gt;{low_threshold:g}</span><span>{vmax:.0f} (99th pct)</span></div>
+	    <div class="small" style="margin-top:8px;">Overlay opacity</div>
+	    <input id="opacity" type="range" min="0" max="1" step="0.05" value="1" />
+	    <div class="small" style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+	      <button id="locate" type="button">現在地</button>
+	      <span id="locstatus"></span>
+	    </div>
+	  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -1367,9 +1381,15 @@ if want_png or want_raster_html:
 
 	    const overlay = L.imageOverlay('{overlay_file}', bounds, {{ opacity: 1 }}).addTo(map);
 	    map.fitBounds(bounds);
-
+	
 	    let userMarker = null;
 	    let userAccuracy = null;
+	    const locateBtn = document.getElementById('locate');
+	    const locStatus = document.getElementById('locstatus');
+	    function setLocStatus(message) {{
+	      if (!locStatus) return;
+	      locStatus.textContent = message || '';
+	    }}
 	    function isInOverlayBounds(latlng) {{
 	      const minLat = bounds[0][0];
 	      const minLon = bounds[0][1];
@@ -1383,8 +1403,8 @@ if want_png or want_raster_html:
 	      );
 	    }}
 	    map.on('locationfound', (e) => {{
-	      if (!isInOverlayBounds(e.latlng)) return;
-	      const targetZoom = Math.max(map.getZoom(), 10);
+	      const inBounds = isInOverlayBounds(e.latlng);
+	      const targetZoom = Math.max(map.getZoom(), inBounds ? 10 : 4);
 	      map.setView(e.latlng, targetZoom, {{ animate: true }});
 	
 	      if (!userMarker) {{
@@ -1412,16 +1432,32 @@ if want_png or want_raster_html:
 	        userAccuracy.setLatLng(e.latlng);
 	        userAccuracy.setRadius(radiusM);
 	      }}
+	
+	      const acc = e.accuracy ? Math.round(e.accuracy) : null;
+	      if (inBounds) setLocStatus(acc ? `現在地 (±${{acc}}m)` : '現在地');
+	      else setLocStatus('現在地は日本の範囲外です');
 	    }});
-	    map.on('locationerror', () => {{}});
-	    if ('geolocation' in navigator) {{
-	      map.locate({{ setView: false, timeout: 8000, maximumAge: 600000 }});
+	    map.on('locationerror', (e) => {{
+	      console.warn('locationerror', e);
+	      if (!e) return setLocStatus('位置情報の取得に失敗しました');
+	      if (e.code === 1) return setLocStatus('位置情報が許可されていません');
+	      if (e.code === 2) return setLocStatus('位置情報を取得できませんでした');
+	      if (e.code === 3) return setLocStatus('位置情報の取得がタイムアウトしました');
+	      return setLocStatus(e.message || '位置情報の取得に失敗しました');
+	    }});
+	    function requestLocation() {{
+	      if (!('geolocation' in navigator)) return setLocStatus('このブラウザは位置情報に非対応です');
+	      if (!window.isSecureContext) return setLocStatus('HTTPS で開いてください');
+	      setLocStatus('位置情報を取得中…');
+	      map.locate({{ setView: false, timeout: 20000, maximumAge: 600000 }});
 	    }}
+	    if (locateBtn) locateBtn.addEventListener('click', requestLocation);
+	    requestLocation();
 	
 	    const cities = {city_js};
-	    for (const c of cities) {{
-	      const pt = L.circleMarker([c.lat, c.lon], {{
-	        radius: 3,
+		    for (const c of cities) {{
+		      const pt = L.circleMarker([c.lat, c.lon], {{
+		        radius: 3,
         color: '#000',
         weight: 1,
         fillColor: '#fff',
