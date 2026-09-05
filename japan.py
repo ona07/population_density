@@ -1085,23 +1085,22 @@ if "region_wgs84" in globals() and region_wgs84 is not None:
 g_wgs84 = g[["meshcode", "population", "area_km2", "density", "geometry"]].copy()
 
 low_threshold = 50.0
-low_color = "#2b6cb0"
+highlight_threshold = 400.0
+low_color = "#77c3ff"
+remote_low_color = "#0a2f63"
+highlight_color = "#4d0f6b"
 no_people_color = "#000000"
 fill_alpha = float(FILL_ALPHA)
+grad_min_label = int(low_threshold) + 1
+grad_max_label = int(highlight_threshold) - 1
+remote_low_distance_km = 35.0
+remote_low_distance_m = remote_low_distance_km * 1000.0
+remote_low_label = f"1–{low_threshold:g} / {highlight_threshold:g}+から約1h超"
+remote_low_note = f"※ 約1時間 = 直線{remote_low_distance_km:g}km近似"
 
 dens_all = pd.to_numeric(g_wgs84["density"], errors="coerce").replace([np.inf, -np.inf], np.nan)
-dens_hi = dens_all.dropna()
-dens_hi = dens_hi[dens_hi > low_threshold]
-if dens_hi.empty:
-    vmin, vmax = low_threshold, low_threshold + 1.0
-else:
-    vmin = float(dens_hi.min())
-    vmax = float(dens_hi.quantile(0.99))
-    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
-        vmin = float(dens_hi.min(skipna=True) or (low_threshold + 1.0))
-        vmax = float(dens_hi.max(skipna=True) or (vmin + 1.0))
-    if vmax <= vmin:
-        vmax = vmin + 1.0
+vmin = low_threshold
+vmax = highlight_threshold
 
 want_png = OUTPUT_MODE in ("png", "both")
 want_raster_html = OUTPUT_MODE == "raster_html"
@@ -1151,7 +1150,31 @@ if want_png or want_raster_html:
         | (dens_arr <= 0)
     )
     low = (~no_people) & (dens_arr <= low_threshold)
-    high = (~no_people) & (~low)
+    highlight = (~no_people) & (dens_arr >= highlight_threshold)
+    high = (~no_people) & (~low) & (~highlight)
+    remote_low = np.zeros(len(g_plot), dtype=bool)
+
+    if highlight.any() and low.any():
+        from shapely.strtree import STRtree
+
+        highlight_points = list(g_plot.geometry[highlight].centroid)
+        low_points = list(g_plot.geometry[low].centroid)
+        pairs, distances = STRtree(highlight_points).query_nearest(
+            low_points,
+            all_matches=False,
+            return_distance=True,
+        )
+        if len(low_points) and len(distances):
+            low_distances = np.full(len(low_points), np.nan, dtype=float)
+            low_distances[pairs[0]] = distances
+            remote_low[np.flatnonzero(low)[low_distances >= remote_low_distance_m]] = True
+            print(
+                "remote low meshes:",
+                int(remote_low.sum()),
+                f"(>{remote_low_distance_km:g}km from density {highlight_threshold:g}+)",
+            )
+
+    g_wgs84["remote_low"] = remote_low
 
     cmap = mpl_cm.get_cmap("YlOrRd")
     norm = Normalize(vmin=vmin, vmax=vmax, clip=True)
@@ -1160,10 +1183,14 @@ if want_png or want_raster_html:
     facecolors[:] = mpl_colors.to_rgba(no_people_color, alpha=fill_alpha)
     if low.any():
         facecolors[low] = mpl_colors.to_rgba(low_color, alpha=fill_alpha)
+    if remote_low.any():
+        facecolors[remote_low] = mpl_colors.to_rgba(remote_low_color, alpha=fill_alpha)
     if high.any():
         rgba = cmap(norm(dens_arr[high]))
         rgba[:, 3] = fill_alpha
         facecolors[high] = rgba
+    if highlight.any():
+        facecolors[highlight] = mpl_colors.to_rgba(highlight_color, alpha=fill_alpha)
 
     if want_png:
         fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=PNG_DPI)
@@ -1240,6 +1267,8 @@ if want_png or want_raster_html:
             handles=[
                 Patch(facecolor=no_people_color, edgecolor="none", label="0"),
                 Patch(facecolor=low_color, edgecolor="none", label=f"1–{low_threshold:g}"),
+                Patch(facecolor=remote_low_color, edgecolor="none", label=remote_low_label),
+                Patch(facecolor=highlight_color, edgecolor="none", label=f"{highlight_threshold:g}+"),
             ],
             loc="lower left",
             frameon=True,
@@ -1359,8 +1388,11 @@ if want_png or want_raster_html:
     <div class="title">Population density (people/km²)</div>
     <div class="row"><span class="swatch" style="background:{no_people_color};"></span><span>0</span></div>
     <div class="row"><span class="swatch" style="background:{low_color};"></span><span>1–{low_threshold:g}</span></div>
+    <div class="row"><span class="swatch" style="background:{remote_low_color};"></span><span>{remote_low_label}</span></div>
+    <div class="row"><span class="swatch" style="background:{highlight_color};"></span><span>{highlight_threshold:g}+</span></div>
     <div class="grad"></div>
-	    <div class="grad-labels"><span>&gt;{low_threshold:g}</span><span>{vmax:.0f} (99th pct)</span></div>
+	    <div class="grad-labels"><span>{grad_min_label}</span><span>{grad_max_label}</span></div>
+	    <div class="small" style="margin-top:6px;">{remote_low_note}</div>
 	    <div class="small" style="margin-top:8px;">Overlay opacity</div>
 	    <input id="opacity" type="range" min="0" max="1" step="0.05" value="1" />
 	    <div class="small" style="margin-top:10px; display:flex; align-items:center; gap:8px;">
@@ -1516,7 +1548,8 @@ if OUTPUT_MODE in ("html", "both"):
 
     colormap = linear.YlOrRd_09.scale(vmin, vmax)
     colormap.caption = (
-        f"Population density (people/km²). Black: 0, Blue: 1–{low_threshold:g}"
+        f"Population density (people/km²). Black: 0, Blue: 1–{low_threshold:g}, "
+        f"Dark blue: {remote_low_label}, {highlight_threshold:g}+: highlight"
     )
     colormap.add_to(m)
 
@@ -1553,7 +1586,15 @@ if OUTPUT_MODE in ("html", "both"):
 
         if v <= low_threshold:
             return {
-                "fillColor": low_color,
+                "fillColor": remote_low_color if bool(props.get("remote_low")) else low_color,
+                "color": "#00000000",
+                "weight": 0.0,
+                "fillOpacity": fill_alpha,
+            }
+
+        if v >= highlight_threshold:
+            return {
+                "fillColor": highlight_color,
                 "color": "#00000000",
                 "weight": 0.0,
                 "fillOpacity": fill_alpha,
